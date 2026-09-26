@@ -10,11 +10,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Select Xcode
+        run: |
+          # 确保使用系统默认最新的完整 Xcode 工具链
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
       - name: Set up Rust & iOS Target
         run: |
           rustup default stable
           rustup target add aarch64-apple-ios
-          # 确保 cargo 在全局 PATH 中
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install Tools
@@ -25,6 +29,10 @@ jobs:
 
       - name: Build Archive (Unsigned)
         run: |
+          # 清除可能被继承污染的 SDK 环境变量，并指定 macOS SDK 路径供 host 编译宏使用
+          unset SDKROOT
+          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+
           xcodebuild -project apps/ios/PhotoBridge.xcodeproj \
             -scheme PhotoBridge \
             -configuration Release \
@@ -39,7 +47,6 @@ jobs:
       - name: Package to IPA
         run: |
           mkdir -p Payload
-          # 提取 App 产物
           cp -r build/PhotoBridge.xcarchive/Products/Applications/*.app Payload/
           zip -r PhotoBridge.ipa Payload
 
