@@ -10,16 +10,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: |
-          # 确保使用系统默认最新的完整 Xcode 工具链
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
       - name: Set up Rust & iOS Target
         run: |
           rustup default stable
           rustup target add aarch64-apple-ios
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Prebuild Rust Crate for iOS
+        run: |
+          # 1. 显式指定 macOS SDK 供主机端宏/脚本构建使用，同时构建目标 aarch64-apple-ios
+          MACOS_SDK=$(xcrun --sdk macosx --show-sdk-path)
+          export SDKROOT="$MACOS_SDK"
+          cargo build --release --target aarch64-apple-ios
 
       - name: Install Tools
         run: brew install xcodegen
@@ -29,10 +31,10 @@ jobs:
 
       - name: Build Archive (Unsigned)
         run: |
-          # 清除可能被继承污染的 SDK 环境变量，并指定 macOS SDK 路径供 host 编译宏使用
-          unset SDKROOT
-          export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-
+          # 2. 导出 macOS SDK 路径，覆盖 Xcode 传给内部 Rust 脚本的环境变量
+          MACOS_SDK=$(xcrun --sdk macosx --show-sdk-path)
+          
+          # 通过 env -u 清理可能污染 Rust 构建的变量，并注入 macOS SDK
           xcodebuild -project apps/ios/PhotoBridge.xcodeproj \
             -scheme PhotoBridge \
             -configuration Release \
@@ -42,6 +44,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
+            SDKROOT_macosx="$MACOS_SDK" \
+            LIBRARY_PATH="$MACOS_SDK/usr/lib" \
             archive
 
       - name: Package to IPA
