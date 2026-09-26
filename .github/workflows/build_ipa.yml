@@ -1,0 +1,44 @@
+name: Build iOS IPA
+
+on:
+  workflow_dispatch: # 支持在 GitHub 页面手动一键点击运行
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Rust & iOS Target
+        run: |
+          rustup default stable
+          rustup target add aarch64-apple-ios
+
+      - name: Install Tools
+        run: brew install xcodegen
+
+      - name: Generate Xcode Project
+        run: xcodegen generate --spec apps/ios/project.yml
+
+      - name: Build Archive (Unsigned)
+        run: |
+          xcodebuild -project apps/ios/PhotoBridge.xcodeproj \
+            -scheme PhotoBridge \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/PhotoBridge.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            archive
+
+      - name: Package to IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/PhotoBridge.xcarchive/Products/Applications/*.app Payload/
+          zip -r PhotoBridge.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoBridge-IPA
+          path: PhotoBridge.ipa
