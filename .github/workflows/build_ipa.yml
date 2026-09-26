@@ -1,14 +1,14 @@
 name: Build iOS IPA
 
 on:
-  workflow_dispatch: # 支持在 GitHub 页面手动一键点击运行
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Rust & iOS Target
         run: |
@@ -26,7 +26,7 @@ jobs:
           xcodebuild -project apps/ios/PhotoBridge.xcodeproj \
             -scheme PhotoBridge \
             -configuration Release \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -archivePath build/PhotoBridge.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             archive
