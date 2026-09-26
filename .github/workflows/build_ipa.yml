@@ -8,12 +8,14 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Set up Rust & iOS Target
         run: |
           rustup default stable
           rustup target add aarch64-apple-ios
+          # 确保 cargo 在全局 PATH 中
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Install Tools
         run: brew install xcodegen
@@ -29,11 +31,15 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath build/PhotoBridge.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
             archive
 
       - name: Package to IPA
         run: |
           mkdir -p Payload
+          # 提取 App 产物
           cp -r build/PhotoBridge.xcarchive/Products/Applications/*.app Payload/
           zip -r PhotoBridge.ipa Payload
 
